@@ -4,7 +4,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import * as echarts from 'echarts'
+// 按需加载ECharts，减少初始加载时间
+let echarts: any = null
+let chartInstance: any = null
 
 interface Props {
   type: 'line' | 'bar' | 'pie' | 'map' | 'radar' | 'scatter'
@@ -158,8 +160,13 @@ const chartOptions = computed(() => {
 })
 
 // 初始化图表
-const initChart = () => {
+const initChart = async () => {
   if (chartRef.value) {
+    // 动态导入ECharts，减少初始加载时间
+    if (!echarts) {
+      const echartsModule = await import('echarts')
+      echarts = echartsModule.default || echartsModule
+    }
     chartInstance = echarts.init(chartRef.value)
     chartInstance.setOption(chartOptions.value)
   }
@@ -178,8 +185,8 @@ const handleResize = () => {
 }
 
 // 生命周期钩子
-onMounted(() => {
-  initChart()
+onMounted(async () => {
+  await initChart()
   window.addEventListener('resize', handleResize)
 })
 
@@ -191,8 +198,12 @@ onUnmounted(() => {
 // 监听数据变化
 watch(
   () => [props.data, props.options],
-  () => {
-    updateChart()
+  async () => {
+    if (!chartInstance) {
+      await initChart()
+    } else {
+      updateChart()
+    }
   },
   { deep: true }
 )
